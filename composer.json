@@ -10,7 +10,7 @@
     "require": {
         "guzzlehttp/guzzle": "^7.0",
         "phpcfdi/image-captcha-resolver": "^0.2.1",
-        "symfony/dom-crawler": "^6.0",
+        "symfony/dom-crawler": "^6.3.4",
         "symfony/css-selector": "^6.0",
         "symfony/panther": "^2.0"
     },
@@ -20,6 +20,11 @@
     "autoload": {
         "psr-4": {
             "PhpCfdi\\CsfPdfScraper\\": "src"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "php-http/discovery": true
         }
     }
 }

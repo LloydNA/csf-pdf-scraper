@@ -107,7 +107,7 @@ class Scraper
                     'cookies' => $cookieParser->guzzleCookieJar(),
                 ]);
         } catch (\Throwable $exception) {
-            throw new PDFDownloadException('Error getting pdf, server error', 0, $exception);
+            throw $exception;
         }
 
         // TODO: quitar esta linea cuando ya no lo descargue 2 veces
