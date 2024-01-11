@@ -22,4 +22,5 @@ interface BrowserClientInterface
     public function getCrawler(): Crawler;
     public function submit(Form $form, array $values = [], array $serverParameters = []): DomCrawler;
     public function getCookieJar(): CookieJar;
+    public function executeScript(string $query): void;
 }

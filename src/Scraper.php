@@ -22,6 +22,7 @@ class Scraper
         private CaptchaResolverInterface $captchaResolver,
         private BrowserClientInterface $browserClient,
         private Client $client,
+        private bool $isFiel = false,
         private int $timeout = 30
     ) {
     }
@@ -32,6 +33,67 @@ class Scraper
      */
     private function login(): void
     {
+        if($this->isFiel) $this->loginFIEL();
+        else $this->loginCIEC();
+    }
+
+    //convertir de PEM a DER
+
+    private function loginFIEL(): void{
+        //get into login page
+        $this->browserClient->get(URL::LOGIN_URL);
+        try {
+            $this->browserClient->waitFor('#buttonFiel', $this->timeout);
+        } catch (TimeoutException | NoSuchElementException $exception) {
+            throw new SatScraperException(sprintf('The %s page does not load as expected', URL::LOGIN_URL), 0, $exception);
+        }
+
+        //click en e-firma
+        $this->browserClient->executeScript("#buttonFiel");
+
+        //verificar si si cargo la ventana de inicio de sesion con e-firma (FIEL)
+        try {
+            $this->browserClient->waitFor('#txtCertificate', $this->timeout);
+        } catch (TimeoutException | NoSuchElementException $exception) {
+            throw new SatScraperException(sprintf('The %s page does not load as expected', URL::LOGIN_URL), 0, $exception);
+        }
+
+        //obtener el formulario del .cer el .key y la clave
+        $form = $this->browserClient->getCrawler()
+            ->selectButton('submit')
+            ->form();
+        //tenemos 4 campos (solo 3 de ellos editables)
+        //El primero recibe el .cer (txtCertificate)
+        //el segundo el .key (txtPrivateKey)
+        //el tercero la llave privada (privateKeyPassword)
+        //por cada campo que requiera un archivo, hay que hacer un tempnam()
+
+        $cert_b64 = $this->credentials->getFcert();
+        $key_b64 = $this->credentials->getFkey();
+        $pass = $this->credentials->getPass();
+
+        //Decodear de base64
+        $cert_decoded = base64_decode($cert_b64);
+        $key_decoded = base64_decode($key_b64);
+
+        // Colocar el contenido decodificado en archivos temporales.cer y .key
+        $cert_file = tempnam(sys_get_temp_dir(), "cert");
+        file_put_contents($cert_file.'.cer', $cert_decoded);
+        $key_file = tempnam(sys_get_temp_dir(), "key");
+        file_put_contents($key_file.'.key', $key_decoded);
+
+        $form->setValues([
+            'txtCertificate' => $cert_file.'.cer',
+            'txtPrivateKey' => $key_file.'.key',
+            'privateKeyPassword' => $pass
+        ]);
+
+        $this->browserClient->submit($form);
+
+        $html = $this->browserClient->getCrawler()->html();
+    }
+
+    private function loginCIEC(): void{
         $this->browserClient->get(URL::LOGIN_URL);
         try {
             $this->browserClient->waitFor('#divCaptcha', $this->timeout);
@@ -60,12 +122,16 @@ class Scraper
         $this->browserClient->submit($form);
 
         $html = $this->browserClient->getCrawler()->html();
-        if (str_contains($html, 'Captcha no válido')) {
-            throw new InvalidCaptchaException('The provided captcha is invalid');
+        if (str_contains($html, 'El Certificado seleccionado es')) {
+            throw new InvalidCredentialsException('El certificado es invalido.');
         }
 
-        if (str_contains($html, 'El RFC o contraseña son incorrectos')) {
-            throw new InvalidCredentialsException('The provided credentials are invalid');
+        if (str_contains($html, 'La clave privada que seleccio')) {
+            throw new InvalidCredentialsException('La clave privada es invalida');
+        }
+
+        if (str_contains($html, 'Certificado, clave privada, o contraseña de clave privada')) {
+            throw new InvalidCredentialsException('Algun dato de la e-firma es invalido (probablemente la contraseña de la llave privada)');
         }
     }
 

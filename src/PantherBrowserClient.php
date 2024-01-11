@@ -32,6 +32,10 @@ class PantherBrowserClient implements BrowserClientInterface
         return $this->browserClient->getCrawler();
     }
 
+    public function executeScript(string $query): void {
+        $this->browserClient->executeScript("document.querySelector(".$query.").click()");
+    }
+
     public function submit(Form $form, array $values = [], array $serverParameters = []): DomCrawler
     {
         return $this->browserClient->submit($form, $values, $serverParameters);
